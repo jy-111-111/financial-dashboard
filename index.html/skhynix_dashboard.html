@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SK하이닉스 연결재무제표 대시보드</title>
+
+  <!-- 폰트 -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- 스타일 -->
+  <link rel="stylesheet" href="skhynix_dashboard.css">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<header>
+  <div class="logo-group">
+    <div class="sk-logo">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="52" height="52" rx="8" fill="#E8001D"/>
+        <text x="26" y="36"
+              font-family="'Bebas Neue',sans-serif"
+              font-size="28" fill="white"
+              text-anchor="middle" letter-spacing="1">SK</text>
+      </svg>
+    </div>
+    <div class="header-title">
+      <h1>SK HYNIX</h1>
+      <span>연결재무제표 대시보드</span>
+    </div>
+  </div>
+  <div class="header-badge">
+    <div class="badge badge-red">IFRS 연결기준</div>
+    <div class="badge badge-dim">2016 — 2025</div>
+    <div class="badge badge-dim">단위: 백만원</div>
+  </div>
+</header>
+
+<!-- ============================================================
+     YEAR NAV
+     ============================================================ -->
+<nav class="year-nav" id="yearNav">
+  <button class="year-tab" onclick="selectYear(2016)">2016</button>
+  <button class="year-tab" onclick="selectYear(2017)">2017</button>
+  <button class="year-tab" onclick="selectYear(2018)">2018</button>
+  <button class="year-tab" onclick="selectYear(2019)">2019</button>
+  <button class="year-tab" onclick="selectYear(2020)">2020</button>
+  <button class="year-tab" onclick="selectYear(2021)">2021</button>
+  <button class="year-tab" onclick="selectYear(2022)">2022</button>
+  <button class="year-tab" onclick="selectYear(2023)">2023</button>
+  <button class="year-tab" onclick="selectYear(2024)">2024</button>
+  <button class="year-tab" onclick="selectYear(2025)">2025</button>
+</nav>
+
+<!-- ============================================================
+     MAIN
+     ============================================================ -->
+<main>
+
+  <!-- 뷰 전환 탭 -->
+  <div class="view-tabs">
+    <button class="view-tab" onclick="switchView('overview')">개요</button>
+    <button class="view-tab" onclick="switchView('income')">손익계산서</button>
+    <button class="view-tab" onclick="switchView('balance')">재무상태표</button>
+    <button class="view-tab" onclick="switchView('cashflow')">현금흐름표</button>
+    <button class="view-tab" onclick="switchView('trend')">전체 추이</button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       개요 패널
+       ══════════════════════════════════════ -->
+  <div class="view-panel" id="panel-overview">
+
+    <!-- KPI 카드 6개 -->
+    <div class="hero-grid" id="heroGrid"></div>
+
+    <!-- Spotlight: 매출 / 영업이익 + 스파크라인 -->
+    <div class="spotlight">
+      <div class="spotlight-cell">
+        <div class="unit-label">매출액</div>
+        <div class="big-number" id="sp-rev-val" style="color:#fff; margin:8px 0 4px;"></div>
+        <div class="unit-label" id="sp-rev-unit"></div>
+      </div>
+      <div class="spotlight-cell">
+        <div class="unit-label">영업이익</div>
+        <div class="big-number" id="sp-op-val" style="margin:8px 0 4px;"></div>
+        <div class="unit-label" id="sp-op-unit"></div>
+      </div>
+      <div class="spotlight-cell wide">
+        <div class="chart-title">
+          영업이익률 추이
+          <span class="chart-title-tag">ALL YEARS</span>
+        </div>
+        <div class="chart-wrap" style="height:80px;">
+          <canvas id="sparklineMargin"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 매출/영업이익 막대 + BS 라인 -->
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">
+          매출 및 영업이익
+          <span class="chart-title-tag">조원</span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>매출액</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>영업이익</div>
+        </div>
+        <div class="chart-wrap" style="height:220px; margin-top:12px;">
+          <canvas id="revOpChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">
+          자산·부채·자본 규모
+          <span class="chart-title-tag">조원</span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>자산총계</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#00C46A"></div>자본합계</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>부채총계</div>
+        </div>
+        <div class="chart-wrap" style="height:220px; margin-top:12px;">
+          <canvas id="bsChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div><!-- /panel-overview -->
+
+  <!-- ══════════════════════════════════════
+       손익계산서 패널
+       ══════════════════════════════════════ -->
+  <div class="view-panel" id="panel-income">
+
+    <div class="hero-grid" id="incomeHeroGrid"></div>
+
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">
+          매출 구성 (매출원가 vs 매출총이익)
+          <span class="chart-title-tag">조원</span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#444"></div>매출원가</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>매출총이익</div>
+        </div>
+        <div class="chart-wrap" style="height:240px; margin-top:12px;">
+          <canvas id="revenueStackChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">
+          이익률 추이
+          <span class="chart-title-tag">%</span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>영업이익률</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>순이익률</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#FFB800"></div>매출총이익률</div>
+        </div>
+        <div class="chart-wrap" style="height:240px; margin-top:12px;">
+          <canvas id="marginChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">
+        연도별 손익계산서 요약
+        <span class="chart-title-tag">백만원</span>
+      </div>
+      <table class="trend-table" id="incomeTable"></table>
+    </div>
+  </div><!-- /panel-income -->
+
+  <!-- ══════════════════════════════════════
+       재무상태표 패널
+       ══════════════════════════════════════ -->
+  <div class="view-panel" id="panel-balance">
+
+    <div class="hero-grid" id="bsHeroGrid"></div>
+
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">
+          자산 / 부채 / 자본 규모 추이
+          <span class="chart-title-tag">조원</span>
+        </div>
+        <div class="chart-wrap" style="height:260px;">
+          <canvas id="bsFullChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">
+          부채비율 추이
+          <span class="chart-title-tag">%</span>
+        </div>
+        <div class="chart-wrap" style="height:260px;">
+          <canvas id="debtRatioChart"></canvas>
+        </div>
+        <div class="legend" style="margin-top:12px;">
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>부채비율 (부채/자본)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>자기자본비율 (자본/자산)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div class="chart-title">
+        선택 연도 재무상태표 구조
+        <span class="chart-title-tag" id="bsYearTag"></span>
+      </div>
+      <div class="bs-bar-wrap" id="bsBarWrap"></div>
+    </div>
+  </div><!-- /panel-balance -->
+
+  <!-- ══════════════════════════════════════
+       현금흐름표 패널
+       ══════════════════════════════════════ -->
+  <div class="view-panel" id="panel-cashflow">
+
+    <div class="hero-grid" id="cfHeroGrid"></div>
+
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">
+          영업창출현금 vs 유형자산 취득
+          <span class="chart-title-tag">조원</span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>영업으로부터 창출된 현금</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>유형자산 취득</div>
+        </div>
+        <div class="chart-wrap" style="height:240px; margin-top:12px;">
+          <canvas id="cfOpPpeChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">
+          CAPEX 집중도 (취득/창출)
+          <span class="chart-title-tag">%</span>
+        </div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="capexRatioChart"></canvas>
+        </div>
+        <div class="legend" style="margin-top:12px;">
+          <div class="legend-item">
+            <div class="legend-dot" style="background:rgba(255,255,255,0.15)"></div>
+            100% 초과 = 영업현금 부족 (외부 조달 필요)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">
+        현금흐름 3대 활동 비교
+        <span class="chart-title-tag">조원</span>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#00C46A"></div>영업활동 현금흐름</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>투자활동 현금흐름</div>
+      </div>
+      <div class="chart-wrap" style="height:220px; margin-top:12px;">
+        <canvas id="cfThreeChart"></canvas>
+      </div>
+    </div>
+  </div><!-- /panel-cashflow -->
+
+  <!-- ══════════════════════════════════════
+       전체 추이 패널
+       ══════════════════════════════════════ -->
+  <div class="view-panel" id="panel-trend">
+
+    <div class="chart-card" style="margin-bottom:16px; overflow-x:auto;">
+      <div class="chart-title">10개년 전체 재무 추이 요약</div>
+      <table class="trend-table" id="fullTrendTable"></table>
+    </div>
+
+    <div class="chart-grid-3">
+      <div class="chart-card">
+        <div class="chart-title">ROE 추이</div>
+        <div class="chart-wrap" style="height:160px;">
+          <canvas id="roeChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">영업이익률 추이</div>
+        <div class="chart-wrap" style="height:160px;">
+          <canvas id="opMarginChart2"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">매출 성장률 추이</div>
+        <div class="chart-wrap" style="height:160px;">
+          <canvas id="revGrowthChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div><!-- /panel-trend -->
+
+</main>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer>
+  <p>SK하이닉스 연결감사보고서 2016–2025 &nbsp;|&nbsp; IFRS 기준 연결재무제표</p>
+  <p>단위: 백만원 &nbsp;|&nbsp; 금융감독원 전자공시시스템 (DART)</p>
+</footer>
+
+<!-- 앱 스크립트 (Chart.js 로드 후 실행) -->
+<script src="skhynix_dashboard.js"></script>
+
+</body>
+</html>
