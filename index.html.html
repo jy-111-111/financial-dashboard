@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SK하이닉스 연결재무제표 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sk-red: #E8001D;
+    --sk-red-dark: #B0001A;
+    --sk-red-dim: rgba(232,0,29,0.12);
+    --sk-red-glow: rgba(232,0,29,0.35);
+    --bg: #0A0A0C;
+    --bg2: #111115;
+    --bg3: #18181E;
+    --bg4: #1F1F28;
+    --border: rgba(255,255,255,0.07);
+    --border-red: rgba(232,0,29,0.3);
+    --text: #F0F0F0;
+    --text-dim: #888899;
+    --text-dimmer: #444455;
+    --accent: #E8001D;
+    --green: #00C46A;
+    --blue: #3A8FFF;
+    --amber: #FFB800;
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-body: 'Noto Sans KR', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(232,0,29,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 90% 90%, rgba(232,0,29,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Grid lines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 28px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(8px);
+    background: rgba(10,10,12,0.85);
+  }
+
+  .logo-group {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .sk-logo {
+    width: 52px;
+    height: 52px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .sk-logo svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .header-title h1 {
+    font-family: var(--font-display);
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .header-title span {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    font-weight: 300;
+    text-transform: uppercase;
+  }
+
+  .header-badge {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  .badge-red {
+    background: var(--sk-red-dim);
+    border: 1px solid var(--border-red);
+    color: var(--sk-red);
+  }
+
+  .badge-dim {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  /* ─── YEAR SELECTOR ─── */
+  .year-nav {
+    position: relative;
+    z-index: 10;
+    padding: 0 40px;
+    background: rgba(10,10,12,0.7);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .year-tab {
+    padding: 14px 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dimmer);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 1px;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .year-tab:hover { color: var(--text-dim); }
+
+  .year-tab.active {
+    color: var(--sk-red);
+    border-bottom-color: var(--sk-red);
+    font-weight: 500;
+  }
+
+  /* ─── MAIN LAYOUT ─── */
+  main {
+    position: relative;
+    z-index: 5;
+    padding: 32px 40px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ─── HERO METRICS ─── */
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .metric-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .metric-card:hover { border-color: rgba(255,255,255,0.15); }
+
+  .metric-card.highlight {
+    border-color: var(--border-red);
+    background: linear-gradient(135deg, var(--bg3) 60%, rgba(232,0,29,0.05));
+  }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: transparent;
+    transition: background 0.2s;
+  }
+
+  .metric-card.highlight::before {
+    background: var(--sk-red);
+  }
+
+  .metric-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-dimmer);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .metric-value {
+    font-family: var(--font-display);
+    font-size: 30px;
+    letter-spacing: 1px;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .metric-value.red { color: var(--sk-red); }
+  .metric-value.green { color: var(--green); }
+  .metric-value.amber { color: var(--amber); }
+
+  .metric-sub {
+    font-size: 10px;
+    color: var(--text-dimmer);
+    margin-top: 5px;
+    font-family: var(--font-mono);
+  }
+
+  .metric-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-top: 6px;
+  }
+
+  .metric-delta.up { background: rgba(0,196,106,0.12); color: var(--green); }
+  .metric-delta.down { background: rgba(232,0,29,0.12); color: var(--sk-red); }
+
+  /* ─── CHARTS SECTION ─── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--sk-red);
+    text-transform: uppercase;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .chart-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-grid-full {
+    margin-bottom: 16px;
+  }
+
+  .chart-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 22px 24px;
+    position: relative;
+  }
+
+  .chart-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .chart-title-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dimmer);
+    letter-spacing: 1px;
+  }
+
+  .chart-wrap {
+    position: relative;
+  }
+
+  /* ─── TREND TABLE ─── */
+  .trend-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .trend-table th {
+    text-align: right;
+    padding: 8px 12px;
+    color: var(--text-dimmer);
+    font-size: 10px;
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .trend-table th:first-child { text-align: left; }
+
+  .trend-table td {
+    padding: 10px 12px;
+    text-align: right;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text);
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+
+  .trend-table td:first-child {
+    text-align: left;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .trend-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+  .trend-table tr.active-row td {
+    background: rgba(232,0,29,0.06);
+  }
+
+  .trend-table tr.active-row td:first-child {
+    color: var(--sk-red);
+    font-weight: 500;
+  }
+
+  .num-red { color: var(--sk-red); }
+  .num-green { color: var(--green); }
+  .num-amber { color: var(--amber); }
+  .num-dim { color: var(--text-dimmer); }
+
+  /* ─── WATERFALL SECTION ─── */
+  .waterfall-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+
+  /* ─── BS BAR ─── */
+  .bs-bar-wrap { margin-top: 8px; }
+
+  .bs-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+
+  .bs-bar-label {
+    width: 55px;
+    color: var(--text-dimmer);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bs-bar-track {
+    flex: 1;
+    height: 20px;
+    background: var(--bg4);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bs-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .bar-assets { background: linear-gradient(90deg, rgba(58,143,255,0.6), rgba(58,143,255,0.3)); color: rgba(58,143,255,0.9); }
+  .bar-equity { background: linear-gradient(90deg, rgba(0,196,106,0.6), rgba(0,196,106,0.3)); color: rgba(0,196,106,0.9); }
+  .bar-liab   { background: linear-gradient(90deg, rgba(232,0,29,0.5), rgba(232,0,29,0.25)); color: rgba(232,0,29,0.9); }
+
+  /* ─── LEGEND ─── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 14px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dimmer);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    position: relative;
+    z-index: 5;
+    padding: 20px 40px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  footer p {
+    font-size: 11px;
+    color: var(--text-dimmer);
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-in {
+    animation: fadeUp 0.4s ease forwards;
+  }
+
+  .animate-in:nth-child(1) { animation-delay: 0s; }
+  .animate-in:nth-child(2) { animation-delay: 0.05s; }
+  .animate-in:nth-child(3) { animation-delay: 0.1s; }
+  .animate-in:nth-child(4) { animation-delay: 0.15s; }
+  .animate-in:nth-child(5) { animation-delay: 0.2s; }
+  .animate-in:nth-child(6) { animation-delay: 0.25s; }
+
+  /* ─── TABS ─── */
+  .view-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg4);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    width: fit-content;
+  }
+
+  .view-tab {
+    padding: 9px 18px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    font-family: var(--font-mono);
+  }
+
+  .view-tab.active {
+    background: var(--sk-red);
+    color: #fff;
+  }
+
+  .view-tab:hover:not(.active) { color: var(--text-dim); background: rgba(255,255,255,0.04); }
+
+  /* ─── VIEW PANELS ─── */
+  .view-panel { display: none; }
+  .view-panel.active { display: block; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 1200px) {
+    .hero-grid { grid-template-columns: repeat(3, 1fr); }
+    .chart-grid-3 { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 900px) {
+    main { padding: 20px; }
+    header { padding: 18px 20px; }
+    .year-nav { padding: 0 20px; }
+    .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; }
+    .hero-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+  .big-number {
+    font-family: var(--font-display);
+    font-size: 56px;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .unit-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dimmer);
+    letter-spacing: 2px;
+  }
+
+  .spotlight {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .spotlight-cell {
+    background: var(--bg3);
+    padding: 30px 36px;
+  }
+
+  .spotlight-cell.wide {
+    grid-column: span 2;
+    padding: 26px 36px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header>
+  <div class="logo-group">
+    <div class="sk-logo">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="52" height="52" rx="8" fill="#E8001D"/>
+        <text x="26" y="36" font-family="'Bebas Neue',sans-serif" font-size="28" fill="white" text-anchor="middle" letter-spacing="1">SK</text>
+      </svg>
+    </div>
+    <div class="header-title">
+      <h1>SK HYNIX</h1>
+      <span>연결재무제표 대시보드</span>
+    </div>
+  </div>
+  <div class="header-badge">
+    <div class="badge badge-red">IFRS 연결기준</div>
+    <div class="badge badge-dim">2016 — 2025</div>
+    <div class="badge badge-dim">단위: 백만원</div>
+  </div>
+</header>
+
+<!-- ─── YEAR NAV ─── -->
+<nav class="year-nav" id="yearNav">
+  <button class="year-tab active" onclick="selectYear(2016)">2016</button>
+  <button class="year-tab" onclick="selectYear(2017)">2017</button>
+  <button class="year-tab" onclick="selectYear(2018)">2018</button>
+  <button class="year-tab" onclick="selectYear(2019)">2019</button>
+  <button class="year-tab" onclick="selectYear(2020)">2020</button>
+  <button class="year-tab" onclick="selectYear(2021)">2021</button>
+  <button class="year-tab" onclick="selectYear(2022)">2022</button>
+  <button class="year-tab" onclick="selectYear(2023)">2023</button>
+  <button class="year-tab" onclick="selectYear(2024)">2024</button>
+  <button class="year-tab" onclick="selectYear(2025)">2025</button>
+</nav>
+
+<!-- ─── MAIN ─── -->
+<main>
+
+  <!-- VIEW TABS -->
+  <div class="view-tabs">
+    <button class="view-tab active" onclick="switchView('overview')">개요</button>
+    <button class="view-tab" onclick="switchView('income')">손익계산서</button>
+    <button class="view-tab" onclick="switchView('balance')">재무상태표</button>
+    <button class="view-tab" onclick="switchView('cashflow')">현금흐름표</button>
+    <button class="view-tab" onclick="switchView('trend')">전체 추이</button>
+  </div>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <div class="view-panel active" id="panel-overview">
+    <!-- Hero Metrics -->
+    <div class="hero-grid" id="heroGrid"></div>
+
+    <!-- Spotlight -->
+    <div class="spotlight" id="spotlight">
+      <div class="spotlight-cell" id="sp-revenue">
+        <div class="unit-label">매출액</div>
+        <div class="big-number" id="sp-rev-val" style="color:#fff; margin: 8px 0 4px;"></div>
+        <div class="unit-label" id="sp-rev-unit"></div>
+      </div>
+      <div class="spotlight-cell" id="sp-op">
+        <div class="unit-label">영업이익</div>
+        <div class="big-number" id="sp-op-val" style="margin: 8px 0 4px;"></div>
+        <div class="unit-label" id="sp-op-unit"></div>
+      </div>
+      <div class="spotlight-cell wide">
+        <div class="chart-title">영업이익률 추이 <span class="chart-title-tag">ALL YEARS</span></div>
+        <div class="chart-wrap" style="height:80px;"><canvas id="sparklineMargin"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 2-col charts -->
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">매출 및 영업이익 <span class="chart-title-tag">조원</span></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>매출액</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>영업이익</div>
+        </div>
+        <div class="chart-wrap" style="height:220px; margin-top:12px;"><canvas id="revOpChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">자산·부채·자본 규모 <span class="chart-title-tag">조원</span></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>자산총계</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#00C46A"></div>자본합계</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>부채총계</div>
+        </div>
+        <div class="chart-wrap" style="height:220px; margin-top:12px;"><canvas id="bsChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ INCOME ═══ -->
+  <div class="view-panel" id="panel-income">
+    <div class="hero-grid" id="incomeHeroGrid"></div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">매출 구성 (매출원가 vs 매출총이익) <span class="chart-title-tag">조원</span></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#444"></div>매출원가</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>매출총이익</div>
+        </div>
+        <div class="chart-wrap" style="height:240px; margin-top:12px;"><canvas id="revenueStackChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">이익률 추이 <span class="chart-title-tag">%</span></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>영업이익률</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>순이익률</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#FFB800"></div>매출총이익률</div>
+        </div>
+        <div class="chart-wrap" style="height:240px; margin-top:12px;"><canvas id="marginChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">연도별 손익계산서 요약 <span class="chart-title-tag">백만원</span></div>
+      <table class="trend-table" id="incomeTable"></table>
+    </div>
+  </div>
+
+  <!-- ═══ BALANCE ═══ -->
+  <div class="view-panel" id="panel-balance">
+    <div class="hero-grid" id="bsHeroGrid"></div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">자산 / 부채 / 자본 규모 추이 <span class="chart-title-tag">조원</span></div>
+        <div class="chart-wrap" style="height:260px;"><canvas id="bsFullChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">부채비율 추이 <span class="chart-title-tag">%</span></div>
+        <div class="chart-wrap" style="height:260px;"><canvas id="debtRatioChart"></canvas></div>
+        <div class="legend" style="margin-top:12px;">
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>부채비율 (부채/자본)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>자기자본비율 (자본/자산)</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div class="chart-title">선택 연도 재무상태표 구조 <span class="chart-title-tag" id="bsYearTag"></span></div>
+      <div class="bs-bar-wrap" id="bsBarWrap"></div>
+    </div>
+  </div>
+
+  <!-- ═══ CASH FLOW ═══ -->
+  <div class="view-panel" id="panel-cashflow">
+    <div class="hero-grid" id="cfHeroGrid"></div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">영업창출현금 vs 유형자산 취득 <span class="chart-title-tag">조원</span></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3A8FFF"></div>영업으로부터 창출된 현금</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>유형자산 취득</div>
+        </div>
+        <div class="chart-wrap" style="height:240px; margin-top:12px;"><canvas id="cfOpPpeChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">CAPEX 집중도 (취득/창출) <span class="chart-title-tag">%</span></div>
+        <div class="chart-wrap" style="height:240px;"><canvas id="capexRatioChart"></canvas></div>
+        <div class="legend" style="margin-top:12px;">
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15)"></div>100% 기준선 초과 = 외부조달</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">현금흐름 3대 활동 비교 <span class="chart-title-tag">조원</span></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#00C46A"></div>영업활동 현금흐름</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#E8001D"></div>투자활동 현금흐름</div>
+      </div>
+      <div class="chart-wrap" style="height:220px; margin-top:12px;"><canvas id="cfThreeChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ═══ TREND ═══ -->
+  <div class="view-panel" id="panel-trend">
+    <div class="chart-card" style="margin-bottom:16px; overflow-x:auto;">
+      <div class="chart-title">10개년 전체 재무 추이 요약</div>
+      <table class="trend-table" id="fullTrendTable"></table>
+    </div>
+    <div class="chart-grid-3">
+      <div class="chart-card">
+        <div class="chart-title">ROE 추이</div>
+        <div class="chart-wrap" style="height:160px;"><canvas id="roeChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">영업이익률 추이</div>
+        <div class="chart-wrap" style="height:160px;"><canvas id="opMarginChart2"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">매출 성장률 추이</div>
+        <div class="chart-wrap" style="height:160px;"><canvas id="revGrowthChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p>SK하이닉스 연결감사보고서 2016–2025 &nbsp;|&nbsp; IFRS 기준 연결재무제표</p>
+  <p>단위: 백만원 &nbsp;|&nbsp; 금융감독원 전자공시시스템 (DART)</p>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const DATA = [
+  { year:2016, assets:32216026, liab:8192496,  equity:24023530,
+    rev:17197975, cogs:10787139, grossP:6410836, sga:3134090, opInc:3276746,  netInc:2960483,
+    cashFromOps:6486781,  ppeAcq:5956354,  opCF:5548922,  invCF:-6230451 },
+  { year:2017, assets:45418464, liab:11597545, equity:33820919,
+    rev:30109434, cogs:12701843, grossP:17407591, sga:3686265, opInc:13721326, netInc:10642219,
+    cashFromOps:15373261, ppeAcq:9128303,  opCF:14690614, invCF:-11919162 },
+  { year:2018, assets:63658335, liab:16806004, equity:46852331,
+    rev:40445066, cogs:15180838, grossP:25264228, sga:4420478, opInc:20843750, netInc:15539984,
+    cashFromOps:25825017, ppeAcq:16036146, opCF:22227199, invCF:-21428749 },
+  { year:2019, assets:64789494, liab:16846299, equity:47943195,
+    rev:26990733, cogs:18818814, grossP:8171919, sga:5452740, opInc:2719179,  netInc:2009078,
+    cashFromOps:11822354, ppeAcq:13920244, opCF:6483188,  invCF:-10450936 },
+  { year:2020, assets:71173853, liab:19264756, equity:51909097,
+    rev:31900418, cogs:21089789, grossP:10810629, sga:5798005, opInc:5012624,  netInc:4758914,
+    cashFromOps:12916771, ppeAcq:10068662, opCF:12314571, invCF:-11840393 },
+  { year:2021, assets:96386474, liab:34195416, equity:62191058,
+    rev:42997792, cogs:24045600, grossP:18952192, sga:6541852, opInc:12410340, netInc:9616188,
+    cashFromOps:20951478, ppeAcq:12486635, opCF:19797648, invCF:-22392277 },
+  { year:2022, assets:103871512,liab:40580970, equity:63290542,
+    rev:44621568, cogs:28993713, grossP:15627855, sga:8818438, opInc:6809417,  netInc:2241669,
+    cashFromOps:19083888, ppeAcq:19010261, opCF:14780517, invCF:-17883746 },
+  { year:2023, assets:100330165,liab:46826413, equity:53503752,
+    rev:32765719, cogs:33299167, grossP:-533448, sga:7196865, opInc:-7730313, netInc:-9137547,
+    cashFromOps:6688866,  ppeAcq:8325138,  opCF:4278191,  invCF:-7334727 },
+  { year:2024, assets:119855209,liab:45939505, equity:73915704,
+    rev:66192960, cogs:34364814, grossP:31828146, sga:8360827, opInc:23467319, netInc:19796902,
+    cashFromOps:31250846, ppeAcq:15945534, opCF:29795885, invCF:-18004637 },
+  { year:2025, assets:176107659,liab:55440908, equity:120666751,
+    rev:97146675, cogs:38455885, grossP:58690790, sga:11484471, opInc:47206319, netInc:42947902,
+    cashFromOps:58904432, ppeAcq:27518924, opCF:53373126, invCF:-48054251 },
+];
+
+const YEARS = DATA.map(d => d.year);
+let selectedYear = 2016;
+let activeView = 'overview';
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+const T = n => (n/1000000).toFixed(1);   // millions → 조원
+const W = n => (n/100000000).toFixed(2); // to 억원
+const fmt = n => n?.toLocaleString('ko-KR') ?? '-';
+const pct = n => n != null ? n.toFixed(1)+'%' : '-';
+const sign = n => n >= 0 ? '+' : '';
+
+function colorBySign(v) {
+  return v > 0 ? '#00C46A' : v < 0 ? '#E8001D' : '#888899';
+}
+
+function yearData(y) { return DATA.find(d => d.year === y); }
+function prevYearData(y) { return DATA.find(d => d.year === y-1); }
+
+function deltaLabel(cur, prev) {
+  if (!prev || !cur) return '';
+  const pctChg = ((cur - prev) / Math.abs(prev)) * 100;
+  const arrow = pctChg >= 0 ? '▲' : '▼';
+  return `${arrow} ${Math.abs(pctChg).toFixed(1)}%`;
+}
+
+// ─────────────────────────────────────────────
+// CHART DEFAULTS
+// ─────────────────────────────────────────────
+Chart.defaults.color = '#666677';
+Chart.defaults.font.family = "'DM Mono', sans-serif";
+Chart.defaults.font.size = 11;
+
+const GRID = { color: 'rgba(255,255,255,0.05)', drawBorder: false };
+const TICK = { color: '#555566', font: { size: 10 } };
+
+function baseOpts(yUnit = '') {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 600, easing: 'easeInOutQuart' },
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#18181E',
+      borderColor: 'rgba(232,0,29,0.3)',
+      borderWidth: 1,
+      titleColor: '#fff',
+      bodyColor: '#aaa',
+      padding: 10,
+      callbacks: {
+        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}${yUnit}`
+      }
+    }},
+    scales: {
+      x: { grid: GRID, ticks: TICK, border: { display: false } },
+      y: { grid: GRID, ticks: TICK, border: { display: false } }
+    }
+  };
+}
+
+// ─────────────────────────────────────────────
+// CHART REGISTRY
+// ─────────────────────────────────────────────
+const charts = {};
+
+function mkChart(id, config) {
+  if (charts[id]) { charts[id].destroy(); }
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  charts[id] = new Chart(canvas, config);
+  return charts[id];
+}
+
+// ─────────────────────────────────────────────
+// HERO METRICS
+// ─────────────────────────────────────────────
+function renderHero(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = items.map(it => `
+    <div class="metric-card ${it.hl ? 'highlight' : ''} animate-in">
+      <div class="metric-label">${it.label}</div>
+      <div class="metric-value ${it.cls || ''}">${it.value}</div>
+      ${it.sub ? `<div class="metric-sub">${it.sub}</div>` : ''}
+      ${it.delta ? `<div class="metric-delta ${it.deltaDir}">${it.delta}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// OVERVIEW
+// ─────────────────────────────────────────────
+function renderOverview(d, prev) {
+  const opMargin = (d.opInc / d.rev * 100);
+  const netMargin = (d.netInc / d.rev * 100);
+  const debtRatio = (d.liab / d.equity * 100);
+
+  renderHero('heroGrid', [
+    { label: '매출액', value: T(d.rev)+'조', sub: '단위: 원', cls: '', hl: true,
+      delta: prev ? deltaLabel(d.rev, prev.rev) : '', deltaDir: d.rev >= (prev?.rev||0) ? 'up' : 'down' },
+    { label: '영업이익', value: T(d.opInc)+'조', sub: '단위: 원',
+      cls: d.opInc >= 0 ? 'green' : 'red',
+      delta: prev ? deltaLabel(d.opInc, prev.opInc) : '', deltaDir: d.opInc >= (prev?.opInc||0) ? 'up' : 'down' },
+    { label: '당기순이익', value: T(d.netInc)+'조', sub: '단위: 원',
+      cls: d.netInc >= 0 ? '' : 'red' },
+    { label: '영업이익률', value: pct(opMargin), cls: opMargin >= 0 ? 'green' : 'red' },
+    { label: '자산총계', value: T(d.assets)+'조', sub: '단위: 원' },
+    { label: '부채비율', value: pct(debtRatio), cls: debtRatio > 100 ? 'amber' : '' },
+  ]);
+
+  // Spotlight
+  document.getElementById('sp-rev-val').textContent = T(d.rev);
+  document.getElementById('sp-rev-unit').textContent = '조원 (백만원: ' + fmt(d.rev) + ')';
+  const opEl = document.getElementById('sp-op-val');
+  opEl.textContent = T(d.opInc);
+  opEl.style.color = d.opInc >= 0 ? '#E8001D' : '#E8001D';
+  opEl.style.color = d.opInc >= 0 ? '#00C46A' : '#E8001D';
+  document.getElementById('sp-op-unit').textContent = '조원 / 이익률 ' + pct(opMargin);
+}
+
+function buildRevOpChart() {
+  const opts = baseOpts('조');
+  opts.scales.y.ticks.callback = v => v + '조';
+  mkChart('revOpChart', {
+    type: 'bar',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '매출액', data: DATA.map(d => +T(d.rev)), backgroundColor: 'rgba(232,0,29,0.7)', borderRadius: 3 },
+        { label: '영업이익', data: DATA.map(d => +T(d.opInc)),
+          backgroundColor: DATA.map(d => d.opInc >= 0 ? 'rgba(58,143,255,0.8)' : 'rgba(232,0,29,0.5)'),
+          borderRadius: 3 },
+      ]
+    },
+    options: { ...opts,
+      scales: { ...opts.scales, x: { ...opts.scales.x, ticks: { ...TICK } } },
+      plugins: { ...opts.plugins, tooltip: { ...opts.plugins.tooltip, callbacks: {
+        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}조원`
+      }}}
+    }
+  });
+}
+
+function buildBsChart() {
+  const opts = baseOpts('조');
+  opts.scales.y.ticks.callback = v => v + '조';
+  mkChart('bsChart', {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '자산총계', data: DATA.map(d => +T(d.assets)), borderColor: '#3A8FFF', backgroundColor: 'rgba(58,143,255,0.05)', borderWidth: 2, pointRadius: 3, tension: 0.3, fill: true },
+        { label: '자본합계', data: DATA.map(d => +T(d.equity)), borderColor: '#00C46A', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3 },
+        { label: '부채총계', data: DATA.map(d => +T(d.liab)),  borderColor: '#E8001D', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3, borderDash: [4,3] },
+      ]
+    },
+    options: { ...opts,
+      plugins: { ...opts.plugins, tooltip: { ...opts.plugins.tooltip, callbacks: {
+        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}조원`
+      }}}
+    }
+  });
+}
+
+function buildSparklineMargin() {
+  const margins = DATA.map(d => +(d.opInc / d.rev * 100).toFixed(1));
+  mkChart('sparklineMargin', {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [{
+        data: margins,
+        borderColor: '#E8001D',
+        backgroundColor: 'rgba(232,0,29,0.08)',
+        borderWidth: 2,
+        pointRadius: DATA.map(d => d.year === selectedYear ? 5 : 2),
+        pointBackgroundColor: DATA.map(d => d.year === selectedYear ? '#E8001D' : 'rgba(232,0,29,0.4)'),
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 400 },
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#18181E', borderColor: 'rgba(232,0,29,0.3)', borderWidth: 1,
+        callbacks: { label: ctx => ` 영업이익률: ${ctx.raw}%` }
+      }},
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#444455' }, border: { display: false } },
+        y: { grid: { display: false }, ticks: { callback: v => v+'%', font: { size: 9 }, color: '#444455' }, border: { display: false } }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// INCOME
+// ─────────────────────────────────────────────
+function renderIncome(d, prev) {
+  const opM = (d.opInc / d.rev * 100);
+  const netM = (d.netInc / d.rev * 100);
+  const grossM = (d.grossP / d.rev * 100);
+
+  renderHero('incomeHeroGrid', [
+    { label: '매출액', value: T(d.rev)+'조', hl: true,
+      delta: prev ? deltaLabel(d.rev, prev.rev) : '', deltaDir: d.rev >= (prev?.rev||0) ? 'up' : 'down' },
+    { label: '매출총이익', value: T(d.grossP)+'조', cls: d.grossP >= 0 ? '' : 'red' },
+    { label: '영업이익', value: T(d.opInc)+'조', cls: d.opInc >= 0 ? 'green' : 'red' },
+    { label: '당기순이익', value: T(d.netInc)+'조', cls: d.netInc >= 0 ? '' : 'red' },
+    { label: '영업이익률', value: pct(opM), cls: opM >= 20 ? 'green' : opM < 0 ? 'red' : '' },
+    { label: '매출총이익률', value: pct(grossM), cls: grossM >= 0 ? '' : 'red' },
+  ]);
+
+  // Income table
+  const tbl = document.getElementById('incomeTable');
+  tbl.innerHTML = `<thead><tr>
+    <th>연도</th><th>매출액</th><th>매출원가</th><th>매출총이익</th><th>판관비</th><th>영업이익</th><th>당기순이익</th><th>영업이익률</th>
+  </tr></thead><tbody>${DATA.map(r => {
+    const m = (r.opInc/r.rev*100).toFixed(1);
+    const isActive = r.year === selectedYear;
+    return `<tr class="${isActive ? 'active-row' : ''}">
+      <td>${r.year}</td>
+      <td>${fmt(r.rev)}</td>
+      <td>${fmt(r.cogs)}</td>
+      <td class="${r.grossP < 0 ? 'num-red' : ''}">${fmt(r.grossP)}</td>
+      <td>${fmt(r.sga)}</td>
+      <td class="${r.opInc < 0 ? 'num-red' : r.opInc > 10000000 ? 'num-green' : ''}">${fmt(r.opInc)}</td>
+      <td class="${r.netInc < 0 ? 'num-red' : ''}">${fmt(r.netInc)}</td>
+      <td class="${parseFloat(m) < 0 ? 'num-red' : parseFloat(m) > 20 ? 'num-green' : ''}">${m}%</td>
+    </tr>`;
+  }).join('')}</tbody>`;
+}
+
+function buildIncomeCharts() {
+  // Revenue stack
+  mkChart('revenueStackChart', {
+    type: 'bar',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '매출원가', data: DATA.map(d => +T(d.cogs)), backgroundColor: 'rgba(80,80,100,0.7)', borderRadius: 3, stack: 'a' },
+        { label: '매출총이익', data: DATA.map(d => Math.max(0,+T(d.grossP))), backgroundColor: 'rgba(232,0,29,0.7)', borderRadius: 3, stack: 'a' },
+      ]
+    },
+    options: { ...baseOpts('조'), scales: { ...baseOpts('조').scales, x: { stacked: true, ...baseOpts().scales.x }, y: { stacked: true, ...baseOpts().scales.y, ticks: { ...TICK, callback: v => v+'조' } } } }
+  });
+
+  // Margin chart
+  mkChart('marginChart', {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '영업이익률', data: DATA.map(d => +(d.opInc/d.rev*100).toFixed(1)), borderColor: '#E8001D', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3 },
+        { label: '순이익률',   data: DATA.map(d => +(d.netInc/d.rev*100).toFixed(1)), borderColor: '#3A8FFF', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3 },
+        { label: '매출총이익률', data: DATA.map(d => +(d.grossP/d.rev*100).toFixed(1)), borderColor: '#FFB800', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, tension: 0.3, borderDash: [4,3] },
+      ]
+    },
+    options: { ...baseOpts('%'),
+      scales: { ...baseOpts('%').scales, y: { ...baseOpts().scales.y, ticks: { ...TICK, callback: v => v+'%' } } },
+      plugins: { ...baseOpts().plugins, tooltip: { ...baseOpts('%').plugins.tooltip }}
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// BALANCE SHEET
+// ─────────────────────────────────────────────
+function renderBalance(d, prev) {
+  const dr = (d.liab / d.equity * 100);
+  const er = (d.equity / d.assets * 100);
+
+  renderHero('bsHeroGrid', [
+    { label: '자산총계', value: T(d.assets)+'조', hl: true,
+      delta: prev ? deltaLabel(d.assets, prev.assets) : '', deltaDir: 'up' },
+    { label: '부채총계', value: T(d.liab)+'조', cls: 'amber' },
+    { label: '자본합계', value: T(d.equity)+'조', cls: 'green' },
+    { label: '부채비율', value: pct(dr), cls: dr > 100 ? 'amber' : '' },
+    { label: '자기자본비율', value: pct(er), cls: er > 50 ? 'green' : '' },
+    { label: '유형자산', value: '-', sub: '주석 기준' },
+  ]);
+
+  // BS bar
+  document.getElementById('bsYearTag').textContent = selectedYear+'년';
+  const maxAssets = Math.max(...DATA.map(d=>d.assets));
+  const wrap = document.getElementById('bsBarWrap');
+  const rows = [
+    { label: '자산총계', val: d.assets, cls: 'bar-assets', unit: '조원' },
+    { label: '자본합계', val: d.equity, cls: 'bar-equity', unit: '조원' },
+    { label: '부채총계', val: d.liab, cls: 'bar-liab', unit: '조원' },
+  ];
+  wrap.innerHTML = rows.map(r => `
+    <div class="bs-bar-row">
+      <div class="bs-bar-label">${r.label}</div>
+      <div class="bs-bar-track">
+        <div class="bs-bar-fill ${r.cls}" style="width:${(r.val/maxAssets*95).toFixed(1)}%">
+          ${T(r.val)}조
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function buildBalanceCharts() {
+  const opts = baseOpts('조');
+  opts.scales.y.ticks.callback = v => v+'조';
+
+  mkChart('bsFullChart', {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '자산총계', data: DATA.map(d => +T(d.assets)), borderColor: '#3A8FFF', backgroundColor: 'rgba(58,143,255,0.07)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 },
+        { label: '자본합계', data: DATA.map(d => +T(d.equity)), borderColor: '#00C46A', backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 3 },
+        { label: '부채총계', data: DATA.map(d => +T(d.liab)),  borderColor: '#E8001D', backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 3, borderDash: [4,3] },
+      ]
+    },
+    options: opts
+  });
+
+  mkChart('debtRatioChart', {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '부채비율', data: DATA.map(d => +(d.liab/d.equity*100).toFixed(1)), borderColor: '#E8001D', backgroundColor: 'rgba(232,0,29,0.07)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3 },
+        { label: '자기자본비율', data: DATA.map(d => +(d.equity/d.assets*100).toFixed(1)), borderColor: '#3A8FFF', backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 3 },
+      ]
+    },
+    options: { ...baseOpts('%'), scales: { ...baseOpts().scales, y: { ...baseOpts().scales.y, ticks: { ...TICK, callback: v => v+'%' } } } }
+  });
+}
+
+// ─────────────────────────────────────────────
+// CASH FLOW
+// ─────────────────────────────────────────────
+function renderCashflow(d, prev) {
+  const ratio = (d.ppeAcq / d.cashFromOps * 100);
+
+  renderHero('cfHeroGrid', [
+    { label: '영업창출현금', value: T(d.cashFromOps)+'조', hl: true, cls: 'green',
+      delta: prev ? deltaLabel(d.cashFromOps, prev.cashFromOps) : '', deltaDir: d.cashFromOps >= (prev?.cashFromOps||0) ? 'up' : 'down' },
+    { label: '영업활동 CF', value: T(d.opCF)+'조', cls: d.opCF >= 0 ? '' : 'red' },
+    { label: '유형자산 취득', value: T(d.ppeAcq)+'조', cls: 'red' },
+    { label: 'CAPEX 집중도', value: pct(ratio), cls: ratio > 100 ? 'red' : ratio > 80 ? 'amber' : 'green' },
+    { label: '투자활동 CF', value: T(d.invCF)+'조', cls: 'red' },
+    { label: '잉여현금흐름', value: T(d.opCF - d.ppeAcq)+'조', cls: (d.opCF - d.ppeAcq) >= 0 ? 'green' : 'red' },
+  ]);
+}
+
+function buildCashflowCharts() {
+  const opts = baseOpts('조');
+  opts.scales.y.ticks.callback = v => v+'조';
+
+  mkChart('cfOpPpeChart', {
+    type: 'bar',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '영업창출현금', data: DATA.map(d => +T(d.cashFromOps)), backgroundColor: 'rgba(58,143,255,0.7)', borderRadius: 3 },
+        { label: '유형자산 취득', data: DATA.map(d => +T(d.ppeAcq)), backgroundColor: 'rgba(232,0,29,0.7)', borderRadius: 3 },
+      ]
+    },
+    options: opts
+  });
+
+  const ratios = DATA.map(d => +(d.ppeAcq/d.cashFromOps*100).toFixed(1));
+  mkChart('capexRatioChart', {
+    type: 'bar',
+    data: {
+      labels: YEARS,
+      datasets: [{
+        label: 'CAPEX 집중도',
+        data: ratios,
+        backgroundColor: ratios.map(r => r > 100 ? 'rgba(232,0,29,0.75)' : r > 80 ? 'rgba(255,184,0,0.7)' : 'rgba(0,196,106,0.7)'),
+        borderRadius: 3,
+      }]
+    },
+    options: { ...baseOpts('%'),
+      plugins: { ...baseOpts('%').plugins,
+        annotation: {},
+        tooltip: { ...baseOpts('%').plugins.tooltip, callbacks: { label: ctx => ` 비중: ${ctx.raw}%` } }
+      },
+      scales: { ...baseOpts().scales,
+        y: { ...baseOpts().scales.y, ticks: { ...TICK, callback: v => v+'%' },
+          min: 0, max: 150
+        }
+      }
+    }
+  });
+
+  mkChart('cfThreeChart', {
+    type: 'bar',
+    data: {
+      labels: YEARS,
+      datasets: [
+        { label: '영업활동 CF', data: DATA.map(d => +T(d.opCF)), backgroundColor: 'rgba(0,196,106,0.7)', borderRadius: 3 },
+        { label: '투자활동 CF', data: DATA.map(d => +T(d.invCF)), backgroundColor: 'rgba(232,0,29,0.6)', borderRadius: 3 },
+      ]
+    },
+    options: { ...baseOpts('조'), scales: { ...baseOpts().scales, y: { ...baseOpts().scales.y, ticks: { ...TICK, callback: v => v+'조' } } } }
+  });
+}
+
+// ─────────────────────────────────────────────
+// TREND VIEW
+// ─────────────────────────────────────────────
+function renderTrend() {
+  const tbl = document.getElementById('fullTrendTable');
+  tbl.innerHTML = `<thead><tr>
+    <th>연도</th><th>매출 (조)</th><th>영업이익 (조)</th><th>순이익 (조)</th><th>자산 (조)</th><th>자본 (조)</th><th>영업이익률</th><th>부채비율</th><th>ROE</th><th>CAPEX비중</th>
+  </tr></thead><tbody>${DATA.map(r => {
+    const om = (r.opInc/r.rev*100);
+    const dr = (r.liab/r.equity*100);
+    const roe = (r.netInc/r.equity*100);
+    const capex = (r.ppeAcq/r.cashFromOps*100);
+    const isActive = r.year === selectedYear;
+    return `<tr class="${isActive ? 'active-row' : ''}">
+      <td>${r.year}</td>
+      <td>${T(r.rev)}</td>
+      <td class="${r.opInc < 0 ? 'num-red' : om > 20 ? 'num-green' : ''}">${T(r.opInc)}</td>
+      <td class="${r.netInc < 0 ? 'num-red' : ''}">${T(r.netInc)}</td>
+      <td>${T(r.assets)}</td>
+      <td>${T(r.equity)}</td>
+      <td class="${om < 0 ? 'num-red' : om > 20 ? 'num-green' : ''}">${om.toFixed(1)}%</td>
+      <td>${dr.toFixed(1)}%</td>
+      <td class="${roe < 0 ? 'num-red' : roe > 20 ? 'num-green' : ''}">${roe.toFixed(1)}%</td>
+      <td class="${capex > 100 ? 'num-red' : capex > 80 ? 'num-amber' : 'num-green'}">${capex.toFixed(1)}%</td>
+    </tr>`;
+  }).join('')}</tbody>`;
+
+  const miniOpts = (unit) => ({
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 400 },
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#18181E', borderColor: 'rgba(232,0,29,0.3)', borderWidth: 1, bodyColor: '#aaa', callbacks: { label: ctx => ` ${ctx.raw}${unit}` } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#444455', maxRotation: 0 }, border: { display: false } },
+      y: { grid: GRID, ticks: { font: { size: 9 }, color: '#444455', callback: v => v+unit }, border: { display: false } }
+    }
+  });
+
+  mkChart('roeChart', {
+    type: 'line',
+    data: { labels: YEARS, datasets: [{ label: 'ROE', data: DATA.map(d => +(d.netInc/d.equity*100).toFixed(1)),
+      borderColor: '#E8001D', backgroundColor: 'rgba(232,0,29,0.07)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true }] },
+    options: miniOpts('%')
+  });
+
+  mkChart('opMarginChart2', {
+    type: 'line',
+    data: { labels: YEARS, datasets: [{ label: '영업이익률', data: DATA.map(d => +(d.opInc/d.rev*100).toFixed(1)),
+      borderColor: '#3A8FFF', backgroundColor: 'rgba(58,143,255,0.07)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true }] },
+    options: miniOpts('%')
+  });
+
+  const growths = DATA.map((d,i) => {
+    if (i === 0) return 0;
+    return +((d.rev - DATA[i-1].rev) / DATA[i-1].rev * 100).toFixed(1);
+  });
+  mkChart('revGrowthChart', {
+    type: 'bar',
+    data: { labels: YEARS, datasets: [{ label: '매출성장률',
+      data: growths,
+      backgroundColor: growths.map(v => v >= 0 ? 'rgba(0,196,106,0.7)' : 'rgba(232,0,29,0.7)'),
+      borderRadius: 2 }] },
+    options: miniOpts('%')
+  });
+}
+
+// ─────────────────────────────────────────────
+// YEAR SELECT
+// ─────────────────────────────────────────────
+function selectYear(year) {
+  selectedYear = year;
+  document.querySelectorAll('.year-tab').forEach((t,i) => {
+    t.classList.toggle('active', YEARS[i] === year);
+  });
+  updateView();
+}
+
+// ─────────────────────────────────────────────
+// VIEW SWITCH
+// ─────────────────────────────────────────────
+function switchView(view) {
+  activeView = view;
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view-tab').forEach(t => {
+    if (t.textContent.trim() === {
+      overview:'개요', income:'손익계산서', balance:'재무상태표', cashflow:'현금흐름표', trend:'전체 추이'
+    }[view]) t.classList.add('active');
+  });
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${view}`)?.classList.add('active');
+  updateView();
+}
+
+function updateView() {
+  const d = yearData(selectedYear);
+  const prev = prevYearData(selectedYear);
+
+  if (activeView === 'overview') {
+    renderOverview(d, prev);
+    buildRevOpChart();
+    buildBsChart();
+    buildSparklineMargin();
+  } else if (activeView === 'income') {
+    renderIncome(d, prev);
+    buildIncomeCharts();
+  } else if (activeView === 'balance') {
+    renderBalance(d, prev);
+    buildBalanceCharts();
+  } else if (activeView === 'cashflow') {
+    renderCashflow(d, prev);
+    buildCashflowCharts();
+  } else if (activeView === 'trend') {
+    renderTrend();
+  }
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  selectYear(2025);
+  switchView('overview');
+});
+</script>
+</body>
+</html>
